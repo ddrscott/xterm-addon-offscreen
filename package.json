@@ -1,0 +1,51 @@
+{
+  "name": "xterm-addon-offscreen",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "An xterm.js addon that renders terminal content to OffscreenCanvas, enabling capture even when the terminal DOM element is off-screen",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "clean": "rm -rf lib",
+    "test:smoke": "echo 'Open test/smoke.html in a browser to run smoke tests'"
+  },
+  "keywords": [
+    "xterm",
+    "xterm.js",
+    "terminal",
+    "offscreen",
+    "canvas",
+    "capture",
+    "screenshot",
+    "minimap"
+  ],
+  "author": "Scott Pierce",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spierce/xterm-addon-offscreen.git"
+  },
+  "bugs": {
+    "url": "https://github.com/spierce/xterm-addon-offscreen/issues"
+  },
+  "homepage": "https://github.com/spierce/xterm-addon-offscreen#readme",
+  "peerDependencies": {
+    "@xterm/xterm": "^5.0.0"
+  },
+  "devDependencies": {
+    "@xterm/xterm": "^5.5.0",
+    "typescript": "^5.3.0"
+  }
+}

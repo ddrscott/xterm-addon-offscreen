@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xterm-addon-offscreen Smoke Test</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h1 { color: #4fc3f7; }
+        h2 { color: #81c784; margin-top: 2em; }
+        .test-result {
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .pass { background: #1b5e20; }
+        .fail { background: #b71c1c; }
+        .info { background: #1565c0; }
+        #terminal-container {
+            margin: 20px 0;
+            border: 1px solid #333;
+        }
+        #captures {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .capture {
+            border: 1px solid #444;
+            padding: 10px;
+            background: #2a2a2a;
+        }
+        .capture img {
+            display: block;
+            margin-top: 10px;
+        }
+        .capture canvas {
+            display: block;
+            margin-top: 10px;
+        }
+        #summary {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 1.2em;
+        }
+        .summary-pass { background: #2e7d32; }
+        .summary-fail { background: #c62828; }
+    </style>
+</head>
+<body>
+    <h1>xterm-addon-offscreen Smoke Test</h1>
+
+    <div id="results"></div>
+
+    <h2>Terminal</h2>
+    <div id="terminal-container"></div>
+
+    <h2>Captures</h2>
+    <div id="captures"></div>
+
+    <div id="summary"></div>
+
+    <script type="module">
+        import { Terminal } from 'https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/+esm';
+        import { OffscreenAddon } from '../lib/index.js';
+
+        const results = document.getElementById('results');
+        const captures = document.getElementById('captures');
+        const summary = document.getElementById('summary');
+
+        let passed = 0;
+        let failed = 0;
+
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+
+            if (type === 'pass') passed++;
+            if (type === 'fail') failed++;
+        }
+
+        function showCapture(label, data) {
+            const div = document.createElement('div');
+            div.className = 'capture';
+            div.innerHTML = `<strong>${label}</strong>`;
+
+            if (data instanceof ImageBitmap) {
+                const canvas = document.createElement('canvas');
+                canvas.width = data.width;
+                canvas.height = data.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(data, 0, 0);
+                div.appendChild(canvas);
+            } else if (typeof data === 'string' && data.startsWith('data:')) {
+                const img = document.createElement('img');
+                img.src = data;
+                div.appendChild(img);
+            } else if (data instanceof Blob) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(data);
+                div.appendChild(img);
+            }
+
+            captures.appendChild(div);
+        }
+
+        async function runTests() {
+            log('Starting smoke tests...', 'info');
+
+            // Test 1: Create terminal
+            let terminal;
+            try {
+                terminal = new Terminal({
+                    cols: 80,
+                    rows: 24,
+                    fontSize: 14,
+                    theme: {
+                        background: '#1e1e1e',
+                        foreground: '#d4d4d4',
+                        cursor: '#ffffff',
+                        red: '#f44336',
+                        green: '#4caf50',
+                        yellow: '#ffeb3b',
+                        blue: '#2196f3',
+                        magenta: '#e91e63',
+                        cyan: '#00bcd4'
+                    }
+                });
+                terminal.open(document.getElementById('terminal-container'));
+                log('PASS: Terminal created', 'pass');
+            } catch (e) {
+                log(`FAIL: Terminal creation - ${e.message}`, 'fail');
+                return;
+            }
+
+            // Test 2: Create addon with default options
+            let addon;
+            try {
+                addon = new OffscreenAddon();
+                log('PASS: Addon created with default options', 'pass');
+            } catch (e) {
+                log(`FAIL: Addon creation - ${e.message}`, 'fail');
+                return;
+            }
+
+            // Test 3: Activate addon
+            try {
+                terminal.loadAddon(addon);
+                log('PASS: Addon activated', 'pass');
+            } catch (e) {
+                log(`FAIL: Addon activation - ${e.message}`, 'fail');
+                return;
+            }
+
+            // Test 4: Write test content with ANSI colors
+            try {
+                terminal.write('xterm-addon-offscreen Smoke Test\r\n');
+                terminal.write('================================\r\n\r\n');
+                terminal.write('\x1b[31mRed text\x1b[0m | ');
+                terminal.write('\x1b[32mGreen text\x1b[0m | ');
+                terminal.write('\x1b[33mYellow text\x1b[0m | ');
+                terminal.write('\x1b[34mBlue text\x1b[0m\r\n');
+                terminal.write('\x1b[1mBold\x1b[0m | ');
+                terminal.write('\x1b[3mItalic\x1b[0m | ');
+                terminal.write('\x1b[4mUnderline\x1b[0m | ');
+                terminal.write('\x1b[9mStrikethrough\x1b[0m\r\n');
+                terminal.write('\x1b[7mInverse\x1b[0m | ');
+                terminal.write('\x1b[2mDim\x1b[0m\r\n\r\n');
+                terminal.write('$ ls -la\r\n');
+                terminal.write('total 48\r\n');
+                terminal.write('drwxr-xr-x  11 user staff   352 Jan  9 15:26 .\r\n');
+                log('PASS: Test content written', 'pass');
+            } catch (e) {
+                log(`FAIL: Writing content - ${e.message}`, 'fail');
+            }
+
+            // Wait for render
+            await new Promise(r => setTimeout(r, 100));
+
+            // Test 5: Capture as ImageBitmap
+            try {
+                const bitmap = await addon.capture({ format: 'imageBitmap' });
+                if (bitmap instanceof ImageBitmap) {
+                    log(`PASS: ImageBitmap capture (${bitmap.width}x${bitmap.height})`, 'pass');
+                    showCapture('ImageBitmap', bitmap);
+                } else {
+                    log('FAIL: ImageBitmap capture - wrong type', 'fail');
+                }
+            } catch (e) {
+                log(`FAIL: ImageBitmap capture - ${e.message}`, 'fail');
+            }
+
+            // Test 6: Capture as dataURL
+            try {
+                const dataUrl = await addon.capture({ format: 'dataURL', type: 'image/png' });
+                if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/png')) {
+                    log(`PASS: dataURL capture (${dataUrl.length} chars)`, 'pass');
+                    showCapture('dataURL (PNG)', dataUrl);
+                } else {
+                    log('FAIL: dataURL capture - wrong format', 'fail');
+                }
+            } catch (e) {
+                log(`FAIL: dataURL capture - ${e.message}`, 'fail');
+            }
+
+            // Test 7: Capture as Blob
+            try {
+                const blob = await addon.capture({ format: 'blob', type: 'image/jpeg', quality: 0.8 });
+                if (blob instanceof Blob && blob.type === 'image/jpeg') {
+                    log(`PASS: Blob capture (${blob.size} bytes, ${blob.type})`, 'pass');
+                    showCapture('Blob (JPEG)', blob);
+                } else {
+                    log('FAIL: Blob capture - wrong type', 'fail');
+                }
+            } catch (e) {
+                log(`FAIL: Blob capture - ${e.message}`, 'fail');
+            }
+
+            // Test 8: getDimensions
+            try {
+                const dims = addon.getDimensions();
+                if (dims.cols === 80 && dims.rows === 24 && dims.width > 0 && dims.height > 0) {
+                    log(`PASS: getDimensions (${dims.width}x${dims.height}, ${dims.cols}x${dims.rows})`, 'pass');
+                } else {
+                    log(`FAIL: getDimensions - unexpected values: ${JSON.stringify(dims)}`, 'fail');
+                }
+            } catch (e) {
+                log(`FAIL: getDimensions - ${e.message}`, 'fail');
+            }
+
+            // Test 9: setOptions with valid scaleFactor
+            try {
+                addon.setOptions({ scaleFactor: 0.5 });
+                const bitmap = await addon.capture({ format: 'imageBitmap' });
+                if (bitmap instanceof ImageBitmap) {
+                    log(`PASS: setOptions scaleFactor 0.5 (${bitmap.width}x${bitmap.height})`, 'pass');
+                    showCapture('Scale 0.5x', bitmap);
+                } else {
+                    log('FAIL: setOptions scaleFactor - capture failed', 'fail');
+                }
+            } catch (e) {
+                log(`FAIL: setOptions scaleFactor - ${e.message}`, 'fail');
+            }
+
+            // Test 10: setOptions with invalid scaleFactor (should warn and use default)
+            try {
+                const originalWarn = console.warn;
+                let warnCalled = false;
+                console.warn = (msg) => { warnCalled = true; originalWarn(msg); };
+
+                addon.setOptions({ scaleFactor: 0 });
+
+                console.warn = originalWarn;
+
+                if (warnCalled) {
+                    log('PASS: Invalid scaleFactor (0) triggered warning', 'pass');
+                } else {
+                    log('FAIL: Invalid scaleFactor (0) did not trigger warning', 'fail');
+                }
+
+                // Reset to valid scale
+                addon.setOptions({ scaleFactor: 1 });
+            } catch (e) {
+                log(`FAIL: Invalid scaleFactor handling - ${e.message}`, 'fail');
+            }
+
+            // Test 11: Quality clamping (out of range values)
+            try {
+                // quality > 1 should be clamped
+                const blob1 = await addon.capture({ format: 'blob', type: 'image/jpeg', quality: 2.0 });
+                // quality < 0 should be clamped
+                const blob2 = await addon.capture({ format: 'blob', type: 'image/jpeg', quality: -1 });
+
+                if (blob1 instanceof Blob && blob2 instanceof Blob) {
+                    log('PASS: Quality clamping for out-of-range values', 'pass');
+                } else {
+                    log('FAIL: Quality clamping - capture failed', 'fail');
+                }
+            } catch (e) {
+                log(`FAIL: Quality clamping - ${e.message}`, 'fail');
+            }
+
+            // Test 12: Addon with custom options
+            try {
+                const addon2 = new OffscreenAddon({
+                    scaleFactor: 2,
+                    showCursor: false
+                });
+                terminal.loadAddon(addon2);
+                const bitmap = await addon2.capture({ format: 'imageBitmap' });
+                if (bitmap instanceof ImageBitmap) {
+                    log(`PASS: Custom options addon (${bitmap.width}x${bitmap.height})`, 'pass');
+                    showCapture('Scale 2x, No Cursor', bitmap);
+                }
+                addon2.dispose();
+            } catch (e) {
+                log(`FAIL: Custom options addon - ${e.message}`, 'fail');
+            }
+
+            // Test 13: Dispose
+            try {
+                addon.dispose();
+                log('PASS: Addon disposed', 'pass');
+            } catch (e) {
+                log(`FAIL: Addon dispose - ${e.message}`, 'fail');
+            }
+
+            // Test 14: Capture after dispose should throw
+            try {
+                await addon.capture();
+                log('FAIL: Capture after dispose should throw', 'fail');
+            } catch (e) {
+                if (e.message.includes('not activated')) {
+                    log('PASS: Capture after dispose throws correctly', 'pass');
+                } else {
+                    log(`FAIL: Wrong error after dispose - ${e.message}`, 'fail');
+                }
+            }
+
+            // Summary
+            summary.className = failed === 0 ? 'summary-pass' : 'summary-fail';
+            summary.textContent = `Tests complete: ${passed} passed, ${failed} failed`;
+        }
+
+        runTests().catch(e => {
+            log(`FATAL: ${e.message}`, 'fail');
+            console.error(e);
+        });
+    </script>
+</body>
+</html>
