@@ -310,7 +310,75 @@
                 log(`FAIL: Custom options addon - ${e.message}`, 'fail');
             }
 
-            // Test 13: Dispose
+            // Test 13: getCanvas() returns OffscreenCanvas
+            const addon3 = new OffscreenAddon({ scaleFactor: 0.3 });
+            terminal.loadAddon(addon3);
+            try {
+                const canvas = addon3.getCanvas();
+                if (canvas instanceof OffscreenCanvas && canvas.width > 0 && canvas.height > 0) {
+                    log(`PASS: getCanvas() returns OffscreenCanvas (${canvas.width}x${canvas.height})`, 'pass');
+                } else {
+                    log('FAIL: getCanvas() - wrong type or invalid dimensions', 'fail');
+                }
+            } catch (e) {
+                log(`FAIL: getCanvas() - ${e.message}`, 'fail');
+            }
+
+            // Test 14: renderTo() draws to target canvas
+            try {
+                const targetCanvas = document.createElement('canvas');
+                targetCanvas.width = 200;
+                targetCanvas.height = 100;
+                const targetCtx = targetCanvas.getContext('2d');
+
+                addon3.renderTo(targetCtx, { width: 200, height: 100 });
+
+                // Check that something was drawn (not all transparent)
+                const imageData = targetCtx.getImageData(0, 0, 200, 100);
+                const hasContent = imageData.data.some((v, i) => i % 4 !== 3 && v !== 0);
+
+                if (hasContent) {
+                    log('PASS: renderTo() draws to target canvas', 'pass');
+                    // Show the result
+                    const div = document.createElement('div');
+                    div.className = 'capture';
+                    div.innerHTML = '<strong>renderTo() (200x100)</strong>';
+                    div.appendChild(targetCanvas);
+                    captures.appendChild(div);
+                } else {
+                    log('FAIL: renderTo() - canvas appears empty', 'fail');
+                }
+            } catch (e) {
+                log(`FAIL: renderTo() - ${e.message}`, 'fail');
+            }
+
+            // Test 15: renderTo() with position offset
+            try {
+                const targetCanvas = document.createElement('canvas');
+                targetCanvas.width = 250;
+                targetCanvas.height = 150;
+                const targetCtx = targetCanvas.getContext('2d');
+                targetCtx.fillStyle = '#333';
+                targetCtx.fillRect(0, 0, 250, 150);
+
+                addon3.renderTo(targetCtx, { x: 25, y: 25, width: 200, height: 100 });
+
+                // Check corner is still the background color (not overwritten)
+                const cornerData = targetCtx.getImageData(0, 0, 1, 1).data;
+                const isCornerBackground = cornerData[0] === 51 && cornerData[1] === 51 && cornerData[2] === 51;
+
+                if (isCornerBackground) {
+                    log('PASS: renderTo() respects x/y offset', 'pass');
+                } else {
+                    log('FAIL: renderTo() - offset not respected', 'fail');
+                }
+            } catch (e) {
+                log(`FAIL: renderTo() offset - ${e.message}`, 'fail');
+            }
+
+            addon3.dispose();
+
+            // Test 16: Dispose
             try {
                 addon.dispose();
                 log('PASS: Addon disposed', 'pass');
@@ -318,7 +386,7 @@
                 log(`FAIL: Addon dispose - ${e.message}`, 'fail');
             }
 
-            // Test 14: Capture after dispose should throw
+            // Test 17: Capture after dispose should throw
             try {
                 await addon.capture();
                 log('FAIL: Capture after dispose should throw', 'fail');

@@ -58,9 +58,6 @@ interface IOffscreenAddonOptions {
 
   // Whether to render the cursor (default: true)
   showCursor?: boolean;
-
-  // Whether to render selection highlighting (default: false)
-  showSelection?: boolean;
 }
 ```
 
@@ -84,6 +81,30 @@ interface ICaptureOptions {
 const result = await offscreenAddon.capture(options);
 ```
 
+### getCanvas()
+
+Returns the underlying `OffscreenCanvas` after rendering the current terminal state. This is the fastest method for displaying terminal content.
+
+```typescript
+const canvas = offscreenAddon.getCanvas();
+targetCtx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
+```
+
+### renderTo(targetCtx, options?)
+
+Renders the terminal content directly to a target canvas context. This is the recommended method for high-refresh-rate use cases like minimaps.
+
+```typescript
+// Draw at specific size (scales automatically)
+offscreenAddon.renderTo(minimapCtx, { width: 200, height: 100 });
+
+// Draw at specific position and size
+offscreenAddon.renderTo(ctx, { x: 10, y: 10, width: 200, height: 100 });
+
+// Draw at full size (1:1)
+offscreenAddon.renderTo(ctx);
+```
+
 ### getDimensions()
 
 Returns the current canvas dimensions.
@@ -94,10 +115,58 @@ const { width, height, cols, rows } = offscreenAddon.getDimensions();
 
 ### setOptions(options)
 
-Updates addon options. Triggers canvas recreation on next capture.
+Updates addon options. Triggers canvas recreation on next render.
 
 ```typescript
 offscreenAddon.setOptions({ scaleFactor: 1.0 });
+```
+
+## Performance
+
+Different methods have different performance characteristics. Choose based on your use case:
+
+| Method | Speed | Use Case |
+|--------|-------|----------|
+| `renderTo()` | Fastest | Minimaps, real-time previews (60fps capable) |
+| `getCanvas()` + `drawImage()` | Fastest | When you need more control over drawing |
+| `capture({ format: 'imageBitmap' })` | Fast | When you need an ImageBitmap object |
+| `capture({ format: 'blob' })` | Slow | Saving to file, uploading |
+| `capture({ format: 'dataURL' })` | Slowest | Embedding in HTML, data URIs |
+
+### Minimap Example (High Performance)
+
+For minimaps or other high-refresh scenarios, use `renderTo()` to avoid encoding overhead:
+
+```typescript
+const offscreenAddon = new OffscreenAddon({ scaleFactor: 0.2 });
+terminal.loadAddon(offscreenAddon);
+
+const minimapCanvas = document.getElementById('minimap');
+const minimapCtx = minimapCanvas.getContext('2d');
+
+function updateMinimap() {
+  offscreenAddon.renderTo(minimapCtx, {
+    width: minimapCanvas.width,
+    height: minimapCanvas.height
+  });
+  requestAnimationFrame(updateMinimap);
+}
+
+updateMinimap();
+```
+
+### Screenshot Example (Quality)
+
+For one-time captures where quality matters more than speed:
+
+```typescript
+const blob = await offscreenAddon.capture({
+  format: 'blob',
+  type: 'image/png'
+});
+
+// Download or upload the blob
+const url = URL.createObjectURL(blob);
 ```
 
 ## How It Works

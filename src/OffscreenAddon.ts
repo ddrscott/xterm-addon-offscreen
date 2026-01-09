@@ -446,6 +446,68 @@ export class OffscreenAddon implements ITerminalAddon {
 	}
 
 	/**
+	 * Get the underlying OffscreenCanvas after rendering.
+	 *
+	 * This is the fastest way to display the terminal content - use the returned
+	 * canvas directly with drawImage() on your target canvas context.
+	 *
+	 * @example
+	 * ```typescript
+	 * const canvas = addon.getCanvas();
+	 * targetCtx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
+	 * ```
+	 */
+	public getCanvas(): OffscreenCanvas {
+		if (!this._terminal) {
+			throw new Error('Addon not activated');
+		}
+
+		this._render();
+
+		if (!this._canvas) {
+			throw new Error('Failed to create canvas');
+		}
+
+		return this._canvas;
+	}
+
+	/**
+	 * Render the terminal content directly to a target canvas context.
+	 *
+	 * This is the recommended method for high-refresh-rate use cases like minimaps.
+	 * It renders the terminal and immediately blits to your target context in one call,
+	 * avoiding intermediate copies and encoding overhead.
+	 *
+	 * @param targetCtx - The canvas context to draw to
+	 * @param options - Optional destination rectangle (defaults to full canvas size)
+	 *
+	 * @example
+	 * ```typescript
+	 * // Draw at specific size (scales automatically)
+	 * addon.renderTo(minimapCtx, { width: 200, height: 100 });
+	 *
+	 * // Draw at specific position and size
+	 * addon.renderTo(ctx, { x: 10, y: 10, width: 200, height: 100 });
+	 *
+	 * // Draw at full size (1:1)
+	 * addon.renderTo(ctx);
+	 * ```
+	 */
+	public renderTo(
+		targetCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+		options?: { x?: number; y?: number; width?: number; height?: number }
+	): void {
+		const canvas = this.getCanvas();
+
+		const x = options?.x ?? 0;
+		const y = options?.y ?? 0;
+		const width = options?.width ?? canvas.width;
+		const height = options?.height ?? canvas.height;
+
+		targetCtx.drawImage(canvas, x, y, width, height);
+	}
+
+	/**
 	 * Update addon options
 	 */
 	public setOptions(options: Partial<IOffscreenAddonOptions>): void {
